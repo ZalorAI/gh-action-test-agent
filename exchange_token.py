@@ -36,7 +36,7 @@ except urllib.error.HTTPError as exc:
     sys.exit(1)
 
 # Step 2: Exchange with Zalor
-exchange_url = f"{ZALOR_ENDPOINT.rstrip('/')}/auth/github/exchange"
+exchange_url = f"{ZALOR_ENDPOINT.rstrip('/')}/api/auth/github/exchange"
 req = urllib.request.Request(
     exchange_url,
     data=b"{}",
