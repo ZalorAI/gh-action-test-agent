@@ -1,0 +1,113 @@
+name: "Zalor Agent Test"
+description: "Test your agent against Zalor datasets with zero secrets via GitHub OIDC"
+
+inputs:
+  agent_name:
+    description: "Name of the agent (used to identify it in the Zalor dashboard)"
+    required: true
+  entrypoint:
+    description: "Agent callable in module:function format, e.g. myapp.agent:run_agent"
+    required: true
+  dataset:
+    description: "Dataset name to test against (optional — Zalor generates inputs if omitted)"
+    required: false
+    default: ""
+  baseline_branch:
+    description: "Branch whose runs are promoted to baseline on merge (default: main)"
+    required: false
+    default: "main"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - name: Install agent dependencies
+      shell: bash
+      run: pip install -r requirements.txt 2>/dev/null || true
+
+    - name: Install Zalor SDK
+      shell: bash
+      run: pip install zalor-agents openinference-instrumentation-openai
+
+    - name: Exchange GitHub OIDC token for Zalor token
+      id: exchange
+      shell: bash
+      env:
+        ZALOR_ENDPOINT: https://agents.zalor.ai
+      run: |
+        TOKEN=$(python "${{ github.action_path }}/exchange_token.py")
+        echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+    - name: Run Zalor agent test
+      shell: bash
+      env:
+        ZALOR_ENDPOINT: https://agents.zalor.ai
+      run: |
+        python "${{ github.action_path }}/run_test.py" \
+          "${{ inputs.agent_name }}" \
+          "${{ inputs.entrypoint }}" \
+          "${{ steps.exchange.outputs.token }}" \
+          "${{ inputs.dataset }}"
+
+    # On active PRs: poll for eval scores, compare to baseline, post comment
+    - name: Report scores and compare to baseline
+      if: github.event.action != 'closed'
+      shell: bash
+      env:
+        ZALOR_ENDPOINT: https://agents.zalor.ai
+      run: |
+        python "${{ github.action_path }}/report.py" \
+          "${{ steps.exchange.outputs.token }}" \
+          "${{ env.ZALOR_ENDPOINT }}" \
+          "${{ inputs.agent_name }}"
+
+    - name: Post PR comment
+      if: github.event.action != 'closed' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const header = '<!-- zalor-test-comment -->';
+          let body;
+          try {
+            body = fs.readFileSync('zalor_report.md', 'utf8').trim();
+          } catch {
+            body = 'Zalor test output not available.';
+          }
+          const fullBody = `${header}\n${body}`;
+          const { data: comments } = await github.rest.issues.listComments({
+            ...context.repo,
+            issue_number: context.issue.number,
+          });
+          const existing = comments.find(c => c.body.startsWith(header));
+          if (existing) {
+            await github.rest.issues.updateComment({
+              ...context.repo,
+              comment_id: existing.id,
+              body: fullBody,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: fullBody,
+            });
+          }
+
+    # On merge to baseline branch: promote this run as the new baseline
+    - name: Promote run as baseline
+      if: |
+        github.event.action == 'closed' &&
+        github.event.pull_request.merged == true &&
+        github.event.pull_request.base.ref == inputs.baseline_branch
+      shell: bash
+      env:
+        ZALOR_ENDPOINT: https://agents.zalor.ai
+      run: |
+        python "${{ github.action_path }}/promote_baseline.py" \
+          "${{ steps.exchange.outputs.token }}" \
+          "${{ env.ZALOR_ENDPOINT }}"
