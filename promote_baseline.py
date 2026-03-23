@@ -30,7 +30,7 @@ def main() -> None:
     agent_id = run_meta["agent_id"]
     run_id = run_meta["run_id"]
 
-    url = f"{endpoint}/v1/agents/{agent_id}/runs/{run_id}/baseline"
+    url = f"{endpoint}/api/v1/agents/{agent_id}/runs/{run_id}/baseline"
     req = urllib.request.Request(
         url,
         data=b"{}",

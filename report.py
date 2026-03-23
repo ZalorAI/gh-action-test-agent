@@ -79,8 +79,8 @@ def main() -> None:
     run_id = run_meta["run_id"]
     results_url = run_meta["results_url"]
 
-    score_url = f"{endpoint}/v1/agents/{agent_id}/runs/{run_id}/score"
-    baseline_url = f"{endpoint}/v1/agents/{agent_id}/baseline/score"
+    score_url = f"{endpoint}/api/v1/agents/{agent_id}/runs/{run_id}/score"
+    baseline_url = f"{endpoint}/api/v1/agents/{agent_id}/baseline/score"
 
     # Poll until evals complete or timeout
     print(f"Waiting for eval scores (up to {POLL_TIMEOUT_SECONDS}s)...")
