@@ -46,6 +46,7 @@ runs:
       shell: bash
       env:
         ZALOR_ENDPOINT: https://agents.zalor.ai
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         python "${{ github.action_path }}/run_test.py" \
           "${{ inputs.agent_name }}" \
