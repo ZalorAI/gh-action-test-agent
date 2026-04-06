@@ -1,6 +1,10 @@
 name: "Zalor Agent Test"
 description: "Test your agent against Zalor datasets with zero secrets via GitHub OIDC"
 
+branding:
+  icon: zap
+  color: white
+
 inputs:
   agent_name:
     description: "Name of the agent (used to identify it in the Zalor dashboard)"
