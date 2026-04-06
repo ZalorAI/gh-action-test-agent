@@ -19,7 +19,6 @@ import urllib.request
 
 POLL_TIMEOUT_SECONDS = int(os.environ.get("ZALOR_POLL_TIMEOUT", "120"))
 POLL_INTERVAL_SECONDS = 10
-ZALOR_LOGO_URL = "https://agents.zalor.ai/logo-sm.png"
 
 
 def _get(url: str, api_key: str) -> dict:
@@ -33,7 +32,7 @@ def _get(url: str, api_key: str) -> dict:
 
 def _pct(pass_count: int, total: int) -> str:
     if total == 0:
-        return "—"
+        return "n/a"
     return f"{round(pass_count / total * 100)}%"
 
 
@@ -48,15 +47,15 @@ def _score_line(score: dict) -> tuple[str, str, str]:
     return pct, fraction, pending_str
 
 
-def _delta_emoji(pr_pct: int | None, base_pct: int | None) -> str:
+def _delta(pr_pct: int | None, base_pct: int | None) -> str:
     if pr_pct is None or base_pct is None:
         return ""
     diff = pr_pct - base_pct
     if diff > 0:
-        return f"✅ +{diff}%"
+        return f"+{diff}%"
     if diff < 0:
-        return f"⚠️ {diff}%"
-    return "➡️ 0%"
+        return f"{diff}%"
+    return "0%"
 
 
 def main() -> None:
@@ -72,7 +71,7 @@ def main() -> None:
         with open("zalor_run.json") as f:
             run_meta = json.load(f)
     except FileNotFoundError:
-        print("ERROR: zalor_run.json not found — did run_test.py succeed?", file=sys.stderr)
+        print("ERROR: zalor_run.json not found - did run_test.py succeed?", file=sys.stderr)
         sys.exit(1)
 
     agent_id = run_meta["agent_id"]
@@ -99,7 +98,7 @@ def main() -> None:
         if time.monotonic() >= deadline:
             print(
                 f"WARNING: Timed out waiting for evals. "
-                f"{pending} simulation(s) still pending — showing partial results.",
+                f"{pending} simulation(s) still pending - showing partial results.",
                 file=sys.stderr,
             )
             break
@@ -123,10 +122,10 @@ def main() -> None:
     if has_baseline and baseline.get("simulation_count"):
         base_pct_raw = round(baseline["pass_count"] / baseline["simulation_count"] * 100)
 
-    pr_pct, pr_fraction, pr_pending = _score_line(score) if score else ("—", "—", "")
+    pr_pct, pr_fraction, pr_pending = _score_line(score) if score else ("n/a", "n/a", "")
 
     lines = [
-        f'<img src="{ZALOR_LOGO_URL}" height="20" alt="Zalor"> &nbsp;**Zalor Agent Test — {agent_name}**',
+        f"**Zalor Agent Test - {agent_name}**",
         "",
         "| | Score | Pass/Total |",
         "|---|---|---|",
@@ -134,21 +133,21 @@ def main() -> None:
 
     if has_baseline:
         base_pct, base_fraction, _ = _score_line(baseline)
-        delta = _delta_emoji(pr_pct_raw, base_pct_raw)
+        delta = _delta(pr_pct_raw, base_pct_raw)
         lines += [
-            f"| 🔀 This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
-            f"| 🌿 Baseline | {base_pct} | {base_fraction} |",
-            f"| Δ | {delta} | |",
+            f"| This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
+            f"| Baseline | {base_pct} | {base_fraction} |",
+            f"| Delta | {delta} | |",
         ]
     else:
         lines += [
-            f"| 🔀 This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
-            f"| 🌿 Baseline | *none set yet* | |",
+            f"| This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
+            f"| Baseline | *none set yet* | |",
         ]
 
     lines += [
         "",
-        f"[View full results →]({results_url})",
+        f"[View full results]({results_url})",
     ]
 
     body = "\n".join(lines)
