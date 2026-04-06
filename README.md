@@ -1,4 +1,4 @@
-# Zalor Agent Test - GitHub Action
+# Zalor Agent Test
 
 Automatically test your AI agent on every pull request. Get a score, compare it to your baseline, and see a comment directly in your PR - with zero secrets required.
 
