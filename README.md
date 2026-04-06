@@ -1,6 +1,6 @@
 # Zalor Agent Test
 
-Automatically test your AI agent on every pull request. Get a score, compare it to your baseline, and see a comment directly in your PR.
+Catch broken AI agents before your users do. Automatically test your agent on every PR and gate deploys on a reliability score, with zero secrets required.
 
 ## How it works
 
