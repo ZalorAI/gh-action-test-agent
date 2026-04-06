@@ -24,7 +24,7 @@ def main() -> None:
         with open("zalor_run.json") as f:
             run_meta = json.load(f)
     except FileNotFoundError:
-        print("ERROR: zalor_run.json not found — did run_test.py succeed?", file=sys.stderr)
+        print("ERROR: zalor_run.json not found - did run_test.py succeed?", file=sys.stderr)
         sys.exit(1)
 
     agent_id = run_meta["agent_id"]
