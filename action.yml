@@ -3,7 +3,7 @@ description: "Test your agent against Zalor datasets with zero secrets via GitHu
 
 branding:
   icon: zap
-  color: white
+  color: gray-dark
 
 inputs:
   agent_name:
