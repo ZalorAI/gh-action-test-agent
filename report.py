@@ -17,7 +17,7 @@ import time
 import urllib.error
 import urllib.request
 
-POLL_TIMEOUT_SECONDS = int(os.environ.get("ZALOR_POLL_TIMEOUT", "120"))
+POLL_TIMEOUT_SECONDS = int(os.environ.get("ZALOR_POLL_TIMEOUT", "3300"))
 POLL_INTERVAL_SECONDS = 10
 
 
@@ -36,15 +36,13 @@ def _pct(pass_count: int, total: int) -> str:
     return f"{round(pass_count / total * 100)}%"
 
 
-def _score_line(score: dict) -> tuple[str, str, str]:
-    """Return (pct_str, fraction_str, pending_str)."""
+def _score_line(score: dict) -> tuple[str, str]:
+    """Return (pct_str, fraction_str)."""
     total = score["simulation_count"]
     passed = score["pass_count"]
-    pending = score["pending_count"]
     pct = _pct(passed, total)
     fraction = f"{passed}/{total}"
-    pending_str = f" *(+{pending} pending)*" if pending else ""
-    return pct, fraction, pending_str
+    return pct, fraction
 
 
 def _delta(pr_pct: int | None, base_pct: int | None) -> str:
@@ -85,6 +83,7 @@ def main() -> None:
     print(f"Waiting for eval scores (up to {POLL_TIMEOUT_SECONDS}s)...")
     deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
     score = {}
+    timed_out = False
     while True:
         try:
             score = _get(score_url, api_key)
@@ -96,14 +95,20 @@ def main() -> None:
         if pending == 0:
             break
         if time.monotonic() >= deadline:
-            print(
-                f"WARNING: Timed out waiting for evals. "
-                f"{pending} simulation(s) still pending - showing partial results.",
-                file=sys.stderr,
-            )
+            timed_out = True
             break
         print(f"  {pending} eval(s) pending, checking again in {POLL_INTERVAL_SECONDS}s...")
         time.sleep(POLL_INTERVAL_SECONDS)
+
+    if timed_out:
+        body = (
+            f"**Zalor Agent Test - {agent_name}**\n\n"
+            f"Results are still being processed. [View results]({results_url})"
+        )
+        with open("zalor_report.md", "w") as f:
+            f.write(body)
+        print(body)
+        return
 
     # Fetch baseline (may not exist yet)
     baseline: dict = {}
@@ -122,7 +127,7 @@ def main() -> None:
     if has_baseline and baseline.get("simulation_count"):
         base_pct_raw = round(baseline["pass_count"] / baseline["simulation_count"] * 100)
 
-    pr_pct, pr_fraction, pr_pending = _score_line(score) if score else ("n/a", "n/a", "")
+    pr_pct, pr_fraction = _score_line(score) if score else ("n/a", "n/a")
 
     lines = [
         f"**Zalor Agent Test - {agent_name}**",
@@ -132,16 +137,16 @@ def main() -> None:
     ]
 
     if has_baseline:
-        base_pct, base_fraction, _ = _score_line(baseline)
+        base_pct, base_fraction = _score_line(baseline)
         delta = _delta(pr_pct_raw, base_pct_raw)
         lines += [
-            f"| This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
+            f"| This PR | **{pr_pct}** | {pr_fraction} |",
             f"| Baseline | {base_pct} | {base_fraction} |",
             f"| Delta | {delta} | |",
         ]
     else:
         lines += [
-            f"| This PR | **{pr_pct}**{pr_pending} | {pr_fraction} |",
+            f"| This PR | **{pr_pct}** | {pr_fraction} |",
             f"| Baseline | *none set yet* | |",
         ]
 
